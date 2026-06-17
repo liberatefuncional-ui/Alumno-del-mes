@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Liberate Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --verde: #148A3E;
+      --verde-dim: #0F6B30;
+      --verde-light: rgba(20,138,62,0.10);
+      --negro: #0D0D0D;
+      --blanco: #FFFFFF;
+      --gris-bg: #F4F4F2;
+      --gris-card: #FFFFFF;
+      --gris-border: rgba(0,0,0,0.08);
+      --gris-text: #666;
+      --gris-mid: #999;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--gris-bg);
+      color: var(--negro);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.9rem 1.5rem;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--gris-border);
+    }
+    .nav-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.5rem;
+      color: var(--negro);
+      letter-spacing: 0.05em;
+    }
+    .nav-logo span { color: var(--verde); }
+    .nav-user {
+      display: flex; align-items: center; gap: 0.8rem;
+    }
+    .nav-nickname {
+      font-size: 0.8rem; font-weight: 700;
+      color: var(--verde); letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .btn-logout {
+      background: none; border: 1px solid var(--gris-border);
+      border-radius: 2px; padding: 0.3rem 0.7rem;
+      font-size: 0.72rem; font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--gris-text); cursor: pointer;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      transition: all 0.15s;
+    }
+    .btn-logout:hover { border-color: var(--negro); color: var(--negro); }
+
+    /* TABS */
+    .tabs {
+      display: flex; border-bottom: 1px solid var(--gris-border);
+      background: var(--blanco); padding: 0 1.5rem;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 0.9rem 1.2rem; margin-bottom: -1px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--gris-text); cursor: pointer;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .tab-btn.active { color: var(--verde); border-bottom-color: var(--verde); }
+    .tab-btn:hover:not(.active) { color: var(--negro); }
+
+    /* PANTALLAS */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ── LOGIN ── */
+    .login-wrap {
+      min-height: calc(100vh - 60px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+    .login-box {
+      background: var(--blanco);
+      border: 1px solid var(--gris-border);
+      border-radius: 4px;
+      padding: 2.5rem 2rem;
+      width: 100%; max-width: 400px;
+    }
+    .login-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--verde);
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.6rem;
+    }
+    .login-label::before { content: ''; display: block; width: 16px; height: 1px; background: var(--verde); }
+    .login-box h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.2rem; letter-spacing: 0.03em;
+      color: var(--negro); margin-bottom: 0.4rem;
+    }
+    .login-box h1 span { color: var(--verde); }
+    .login-box p {
+      font-size: 0.85rem; color: var(--gris-text);
+      margin-bottom: 2rem; font-weight: 300;
+    }
+    .login-tabs {
+      display: flex; gap: 0; margin-bottom: 1.8rem;
+      border: 1px solid var(--gris-border); border-radius: 2px; overflow: hidden;
+    }
+    .ltab {
+      flex: 1; background: none; border: none;
+      padding: 0.55rem; font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--gris-text); cursor: pointer; transition: all 0.15s;
+    }
+    .ltab.active { background: var(--negro); color: var(--blanco); }
+    .field { margin-bottom: 1.2rem; }
+    .field label {
+      display: block; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--gris-mid); margin-bottom: 0.4rem;
+    }
+    .field input {
+      width: 100%; padding: 0.7rem 0.9rem;
+      border: 1px solid var(--gris-border); border-radius: 2px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+      color: var(--negro); background: var(--gris-bg);
+      transition: border-color 0.15s; outline: none;
+    }
+    .field input:focus { border-color: var(--verde); background: var(--blanco); }
+    .btn-primary {
+      width: 100%; background: var(--verde); color: #fff;
+      border: none; border-radius: 2px;
+      padding: 0.8rem; font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--verde-dim); }
+    .btn-primary:disabled { background: var(--gris-mid); cursor: not-allowed; }
+    .login-error {
+      margin-top: 1rem; padding: 0.7rem 0.9rem;
+      background: rgba(220,38,38,0.07); border-left: 3px solid #DC2626;
+      border-radius: 2px; font-size: 0.82rem; color: #DC2626;
+      display: none;
+    }
+    .login-error.visible { display: block; }
+
+    /* ── DASHBOARD ── */
+    .dash-header {
+      background: var(--negro); padding: 2.5rem 1.5rem 2rem;
+      position: relative; overflow: hidden;
+    }
+    .dash-header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        -55deg, transparent, transparent 60px,
+        rgba(20,138,62,0.04) 60px, rgba(20,138,62,0.04) 61px
+      );
+    }
+    .dash-inner { max-width: 700px; margin: 0 auto; position: relative; z-index: 2; }
+    .dash-saludo {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--verde);
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .dash-saludo::before { content: ''; display: block; width: 16px; height: 1px; background: var(--verde); }
+    .dash-header h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: #fff; letter-spacing: 0.03em; line-height: 1;
+      margin-bottom: 1.5rem;
+    }
+    .dash-header h2 span { color: var(--verde); }
+    .stats-row {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+    }
+    .stat-chip {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 2px; padding: 0.7rem 1rem;
+      display: flex; flex-direction: column; gap: 0.2rem;
+    }
+    .stat-chip .num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem; color: var(--verde); line-height: 1;
+      letter-spacing: 0.04em;
+    }
+    .stat-chip .lbl {
+      font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: #888;
+    }
+
+    /* Botón entrenar */
+    .entrenar-wrap {
+      max-width: 700px; margin: 0 auto;
+      padding: 1.5rem 1.5rem 0;
+    }
+    .btn-entrenar {
+      width: 100%; background: var(--verde); color: #fff;
+      border: none; border-radius: 2px;
+      padding: 1.1rem; font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem; letter-spacing: 0.1em;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+    }
+    .btn-entrenar:hover { background: var(--verde-dim); }
+    .btn-entrenar.done {
+      background: rgba(20,138,62,0.12); color: var(--verde);
+      border: 1px solid rgba(20,138,62,0.3); cursor: default;
+    }
+
+    /* Calendario del mes */
+    .cal-wrap {
+      max-width: 700px; margin: 0 auto;
+      padding: 1.5rem;
+    }
+    .section-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--gris-mid);
+      margin-bottom: 0.8rem;
+    }
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .cal-day-name {
+      text-align: center; font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--gris-mid); padding: 0.3rem 0;
+    }
+    .cal-day {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 500;
+      border-radius: 2px; background: var(--blanco);
+      border: 1px solid var(--gris-border);
+      color: var(--gris-text);
+    }
+    .cal-day.empty { background: transparent; border-color: transparent; }
+    .cal-day.entrenado { background: var(--verde); color: #fff; border-color: var(--verde); font-weight: 700; }
+    .cal-day.hoy { border-color: var(--verde); color: var(--verde); font-weight: 700; }
+    .cal-day.entrenado.hoy { background: var(--verde); color: #fff; }
+
+    /* ── RANKING ── */
+    .ranking-wrap {
+      max-width: 700px; margin: 0 auto; padding: 1.5rem;
+    }
+    .ranking-header {
+      background: var(--negro); border-radius: 2px;
+      padding: 1.5rem; margin-bottom: 1.5rem;
+      position: relative; overflow: hidden;
+    }
+    .ranking-header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        -55deg, transparent, transparent 40px,
+        rgba(20,138,62,0.05) 40px, rgba(20,138,62,0.05) 41px
+      );
+    }
+    .ranking-header h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.8rem; color: #fff;
+      letter-spacing: 0.05em; position: relative; z-index: 2;
+    }
+    .ranking-header h2 span { color: var(--verde); }
+    .ranking-header p {
+      font-size: 0.8rem; color: #888; margin-top: 0.3rem;
+      position: relative; z-index: 2;
+    }
+    .ranking-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .ranking-item {
+      background: var(--blanco); border: 1px solid var(--gris-border);
+      border-radius: 2px; padding: 0.9rem 1rem;
+      display: flex; align-items: center; gap: 1rem;
+      transition: border-color 0.15s;
+    }
+    .ranking-item.yo { border-color: var(--verde); background: var(--verde-light); }
+    .ranking-item.top1 { border-color: #F59E0B; }
+    .rank-pos {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem; letter-spacing: 0.04em;
+      color: var(--gris-mid); min-width: 2rem; text-align: center;
+    }
+    .ranking-item.top1 .rank-pos { color: #F59E0B; }
+    .rank-info { flex: 1; }
+    .rank-nick {
+      font-weight: 700; font-size: 0.9rem;
+      color: var(--negro); letter-spacing: 0.02em;
+    }
+    .ranking-item.yo .rank-nick::after {
+      content: ' (vos)';
+      font-weight: 400; font-size: 0.75rem; color: var(--verde);
+    }
+    .rank-sub {
+      font-size: 0.72rem; color: var(--gris-mid); margin-top: 0.15rem;
+    }
+    .rank-dias {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem; color: var(--verde); letter-spacing: 0.04em;
+    }
+    .rank-dias-lbl {
+      font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--gris-mid); text-align: right;
+    }
+
+    /* ── COMUNIDAD ── */
+    .comunidad-wrap {
+      max-width: 700px; margin: 0 auto; padding: 1.5rem;
+    }
+    .comment-form {
+      background: var(--blanco); border: 1px solid var(--gris-border);
+      border-radius: 2px; padding: 1.2rem; margin-bottom: 1.5rem;
+    }
+    .comment-form textarea {
+      width: 100%; padding: 0.7rem 0.9rem;
+      border: 1px solid var(--gris-border); border-radius: 2px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+      color: var(--negro); background: var(--gris-bg);
+      resize: vertical; min-height: 80px; outline: none;
+      transition: border-color 0.15s;
+    }
+    .comment-form textarea:focus { border-color: var(--verde); background: var(--blanco); }
+    .btn-comment {
+      margin-top: 0.8rem;
+      background: var(--verde); color: #fff;
+      border: none; border-radius: 2px;
+      padding: 0.6rem 1.2rem; font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem; font-weight: 700;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-comment:hover { background: var(--verde-dim); }
+    .btn-comment:disabled { background: var(--gris-mid); cursor: not-allowed; }
+    .comments-list { display: flex; flex-direction: column; gap: 0.8rem; }
+    .comment-card {
+      background: var(--blanco); border: 1px solid var(--gris-border);
+      border-radius: 2px; padding: 1rem;
+    }
+    .comment-card.mio { border-left: 3px solid var(--verde); }
+    .comment-top {
+      display: flex; align-items: center; gap: 0.6rem;
+      margin-bottom: 0.5rem;
+    }
+    .comment-nick {
+      font-weight: 700; font-size: 0.82rem;
+      color: var(--verde); letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .comment-time {
+      font-size: 0.72rem; color: var(--gris-mid);
+    }
+    .comment-text {
+      font-size: 0.88rem; color: var(--negro);
+      line-height: 1.5; font-weight: 300;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center; padding: 3rem 1rem;
+      font-size: 0.82rem; color: var(--gris-mid);
+      letter-spacing: 0.05em;
+    }
+    .loading::after {
+      content: ''; display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid var(--gris-border);
+      border-top-color: var(--verde);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-left: 0.5rem; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--gris-mid); font-size: 0.85rem;
+    }
+
+    @media (max-width: 480px) {
+      .stats-row { gap: 0.6rem; }
+      .stat-chip .num { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="main-nav" style="display:none">
+  <div class="nav-logo">LIBERATE <span>TRACKER</span></div>
+  <div class="nav-user">
+    <span class="nav-nickname" id="nav-nick"></span>
+    <button class="btn-logout" onclick="logout()">Salir</button>
+  </div>
+</nav>
+
+<!-- TABS -->
+<div class="tabs" id="main-tabs" style="display:none">
+  <button class="tab-btn active" onclick="showTab('dashboard')">Mi Entrenamiento</button>
+  <button class="tab-btn" onclick="showTab('ranking')">Ranking</button>
+  <button class="tab-btn" onclick="showTab('comunidad')">Comunidad</button>
+</div>
+
+<!-- ══ LOGIN ══ -->
+<div id="screen-login" class="screen active">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div class="login-label">Liberate Funcional</div>
+      <h1>TU <span>TRACKER</span></h1>
+      <p>Seguí tus días, competí con el grupo y ganá el mes.</p>
+
+      <div class="login-tabs">
+        <button class="ltab active" onclick="switchLoginTab('ingresar')">Ingresar</button>
+        <button class="ltab" onclick="switchLoginTab('crear')">Crear cuenta</button>
+      </div>
+
+      <!-- INGRESAR -->
+      <div id="form-ingresar">
+        <div class="field">
+          <label>Tu apodo</label>
+          <input type="text" id="in-nick" placeholder="ej: ElToro" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label>PIN (4 dígitos)</label>
+          <input type="password" id="in-pin" placeholder="••••" maxlength="4" inputmode="numeric"/>
+        </div>
+        <button class="btn-primary" onclick="ingresar()">ENTRAR</button>
+      </div>
+
+      <!-- CREAR -->
+      <div id="form-crear" style="display:none">
+        <div class="field">
+          <label>Elegí un apodo</label>
+          <input type="text" id="cr-nick" placeholder="ej: LaFiera" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label>PIN de 4 dígitos</label>
+          <input type="password" id="cr-pin" placeholder="••••" maxlength="4" inputmode="numeric"/>
+        </div>
+        <div class="field">
+          <label>Confirmá el PIN</label>
+          <input type="password" id="cr-pin2" placeholder="••••" maxlength="4" inputmode="numeric"/>
+        </div>
+        <button class="btn-primary" onclick="crearCuenta()">CREAR Y ENTRAR</button>
+      </div>
+
+      <div class="login-error" id="login-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div id="screen-dashboard" class="screen">
+  <div class="dash-header">
+    <div class="dash-inner">
+      <div class="dash-saludo">Hola, <span id="dash-nick" style="margin-left:0.3rem"></span></div>
+      <h2>TU <span>PROGRESO</span></h2>
+      <div class="stats-row">
+        <div class="stat-chip">
+          <span class="num" id="stat-racha">0</span>
+          <span class="lbl">Días de racha</span>
+        </div>
+        <div class="stat-chip">
+          <span class="num" id="stat-mes">0</span>
+          <span class="lbl">Días este mes</span>
+        </div>
+        <div class="stat-chip">
+          <span class="num" id="stat-pos">—</span>
+          <span class="lbl">Posición ranking</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="entrenar-wrap">
+    <button class="btn-entrenar" id="btn-entrenar" onclick="marcarEntrenamiento()">
+      ⚡ HOY ENTRENÉ
+    </button>
+  </div>
+
+  <div class="cal-wrap">
+    <div class="section-label">Este mes</div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</div>
+
+<!-- ══ RANKING ══ -->
+<div id="screen-ranking" class="screen">
+  <div class="ranking-wrap">
+    <div class="ranking-header">
+      <h2>RANKING <span>DEL MES</span></h2>
+      <p id="ranking-mes-label"></p>
+    </div>
+    <div class="ranking-list" id="ranking-list">
+      <div class="loading">Cargando ranking</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ COMUNIDAD ══ -->
+<div id="screen-comunidad" class="screen">
+  <div class="comunidad-wrap">
+    <div class="comment-form">
+      <div class="section-label">Dejá un mensaje al grupo</div>
+      <textarea id="comment-text" placeholder="¿Cómo estuvo el entreno? ¿Algún logro? Contale al grupo..."></textarea>
+      <button class="btn-comment" onclick="publicarComentario()">PUBLICAR</button>
+    </div>
+    <div class="section-label">Mensajes del grupo</div>
+    <div class="comments-list" id="comments-list">
+      <div class="loading">Cargando mensajes</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://hkpxpzatkpayngiosbbt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrcHhwemF0a3BheW5naW9zYmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjQxMDYsImV4cCI6MjA5NzMwMDEwNn0.kj-2jOJb-g_dxHhkFlS7pskecI0vVNGTmT9-g1HlJIs';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let usuario = null;
+let entrenamientosDelMes = [];
+
+// ── UTILS ──
+function hoy() {
+  return new Date().toISOString().split('T')[0];
+}
+function mesActual() {
+  const d = new Date();
+  return { anio: d.getFullYear(), mes: d.getMonth() + 1 };
+}
+function primerDiaMes() {
+  const { anio, mes } = mesActual();
+  return `${anio}-${String(mes).padStart(2,'0')}-01`;
+}
+function ultimoDiaMes() {
+  const { anio, mes } = mesActual();
+  const ultimo = new Date(anio, mes, 0).getDate();
+  return `${anio}-${String(mes).padStart(2,'0')}-${String(ultimo).padStart(2,'0')}`;
+}
+function nombreMes() {
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return meses[new Date().getMonth()];
+}
+function showError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function hideError() {
+  document.getElementById('login-error').classList.remove('visible');
+}
+
+// ── AUTH ──
+function switchLoginTab(tab) {
+  document.querySelectorAll('.ltab').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('form-ingresar').style.display = tab === 'ingresar' ? 'block' : 'none';
+  document.getElementById('form-crear').style.display = tab === 'crear' ? 'block' : 'none';
+  hideError();
+}
+
+async function ingresar() {
+  const nick = document.getElementById('in-nick').value.trim();
+  const pin = document.getElementById('in-pin').value.trim();
+  if (!nick || !pin) return showError('Completá apodo y PIN.');
+  hideError();
+
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Ingresando...';
+
+  const { data, error } = await sb.from('usuarios')
+    .select('*').eq('nickname', nick).eq('pin', pin).single();
+
+  btn.disabled = false; btn.textContent = 'ENTRAR';
+
+  if (error || !data) return showError('Apodo o PIN incorrecto.');
+  iniciarSesion(data);
+}
+
+async function crearCuenta() {
+  const nick = document.getElementById('cr-nick').value.trim();
+  const pin = document.getElementById('cr-pin').value.trim();
+  const pin2 = document.getElementById('cr-pin2').value.trim();
+  if (!nick || !pin) return showError('Completá todos los campos.');
+  if (pin !== pin2) return showError('Los PINs no coinciden.');
+  if (pin.length !== 4 || !/^\d+$/.test(pin)) return showError('El PIN debe tener exactamente 4 dígitos.');
+  if (nick.length < 2) return showError('El apodo debe tener al menos 2 caracteres.');
+  hideError();
+
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Creando...';
+
+  const { data, error } = await sb.from('usuarios')
+    .insert({ nickname: nick, pin }).select().single();
+
+  btn.disabled = false; btn.textContent = 'CREAR Y ENTRAR';
+
+  if (error) {
+    if (error.code === '23505') return showError('Ese apodo ya está en uso, elegí otro.');
+    return showError('Error al crear cuenta. Intentá de nuevo.');
+  }
+  iniciarSesion(data);
+}
+
+function iniciarSesion(u) {
+  usuario = u;
+  localStorage.setItem('lt_usuario', JSON.stringify(u));
+  mostrarApp();
+}
+
+function logout() {
+  usuario = null;
+  localStorage.removeItem('lt_usuario');
+  location.reload();
+}
+
+// ── NAVEGACIÓN ──
+function mostrarApp() {
+  document.getElementById('screen-login').classList.remove('active');
+  document.getElementById('main-nav').style.display = 'flex';
+  document.getElementById('main-tabs').style.display = 'flex';
+  document.getElementById('nav-nick').textContent = usuario.nickname.toUpperCase();
+  showTab('dashboard');
+}
+
+function showTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + tab).classList.add('active');
+  const idx = ['dashboard','ranking','comunidad'].indexOf(tab);
+  document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
+
+  if (tab === 'dashboard') cargarDashboard();
+  if (tab === 'ranking') cargarRanking();
+  if (tab === 'comunidad') cargarComentarios();
+}
+
+// ── DASHBOARD ──
+async function cargarDashboard() {
+  document.getElementById('dash-nick').textContent = usuario.nickname + '!';
+
+  const { data } = await sb.from('entrenamientos')
+    .select('fecha')
+    .eq('usuario_id', usuario.id)
+    .gte('fecha', primerDiaMes())
+    .lte('fecha', ultimoDiaMes())
+    .order('fecha', { ascending: true });
+
+  entrenamientosDelMes = (data || []).map(e => e.fecha);
+
+  // Stats
+  document.getElementById('stat-mes').textContent = entrenamientosDelMes.length;
+
+  // Racha
+  const racha = calcularRacha();
+  document.getElementById('stat-racha').textContent = racha;
+
+  // Posición
+  const pos = await obtenerPosicion();
+  document.getElementById('stat-pos').textContent = pos ? '#' + pos : '—';
+
+  // Botón hoy
+  const yaEntrenado = entrenamientosDelMes.includes(hoy());
+  const btn = document.getElementById('btn-entrenar');
+  if (yaEntrenado) {
+    btn.classList.add('done');
+    btn.textContent = '✓ YA ENTRENASTE HOY';
+  } else {
+    btn.classList.remove('done');
+    btn.innerHTML = '⚡ HOY ENTRENÉ';
+  }
+
+  // Calendario
+  renderCalendario();
+}
+
+function calcularRacha() {
+  if (entrenamientosDelMes.length === 0) return 0;
+  const fechas = new Set(entrenamientosDelMes);
+  let racha = 0;
+  let d = new Date();
+  while (true) {
+    const str = d.toISOString().split('T')[0];
+    if (fechas.has(str)) {
+      racha++;
+      d.setDate(d.getDate() - 1);
+    } else break;
+  }
+  return racha;
+}
+
+async function obtenerPosicion() {
+  const { data } = await sb.from('entrenamientos')
+    .select('usuario_id')
+    .gte('fecha', primerDiaMes())
+    .lte('fecha', ultimoDiaMes());
+
+  if (!data) return null;
+  const conteo = {};
+  data.forEach(e => { conteo[e.usuario_id] = (conteo[e.usuario_id] || 0) + 1; });
+  const sorted = Object.entries(conteo).sort((a,b) => b[1] - a[1]);
+  const idx = sorted.findIndex(([id]) => id === usuario.id);
+  return idx === -1 ? null : idx + 1;
+}
+
+function renderCalendario() {
+  const { anio, mes } = mesActual();
+  const primerDia = new Date(anio, mes - 1, 1).getDay();
+  const diasEnMes = new Date(anio, mes, 0).getDate();
+  const hoyStr = hoy();
+  const fechasSet = new Set(entrenamientosDelMes);
+
+  const grid = document.getElementById('cal-grid');
+  const dias = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
+  let html = dias.map(d => `<div class="cal-day-name">${d}</div>`).join('');
+
+  for (let i = 0; i < primerDia; i++) html += `<div class="cal-day empty"></div>`;
+
+  for (let d = 1; d <= diasEnMes; d++) {
+    const str = `${anio}-${String(mes).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let cls = 'cal-day';
+    if (fechasSet.has(str)) cls += ' entrenado';
+    if (str === hoyStr) cls += ' hoy';
+    html += `<div class="${cls}">${d}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+async function marcarEntrenamiento() {
+  const btn = document.getElementById('btn-entrenar');
+  if (btn.classList.contains('done')) return;
+
+  btn.disabled = true; btn.textContent = 'GUARDANDO...';
+
+  const { error } = await sb.from('entrenamientos')
+    .insert({ usuario_id: usuario.id, fecha: hoy() });
+
+  btn.disabled = false;
+
+  if (error) {
+    if (error.code === '23505') {
+      btn.classList.add('done'); btn.textContent = '✓ YA ENTRENASTE HOY';
+    } else {
+      btn.innerHTML = '⚡ HOY ENTRENÉ';
+      alert('Error al guardar. Intentá de nuevo.');
+    }
+    return;
+  }
+  await cargarDashboard();
+}
+
+// ── RANKING ──
+async function cargarRanking() {
+  document.getElementById('ranking-mes-label').textContent = nombreMes() + ' ' + new Date().getFullYear();
+
+  const { data: ents } = await sb.from('entrenamientos')
+    .select('usuario_id')
+    .gte('fecha', primerDiaMes())
+    .lte('fecha', ultimoDiaMes());
+
+  if (!ents || ents.length === 0) {
+    document.getElementById('ranking-list').innerHTML = '<div class="empty-state">Nadie entrenó todavía este mes.<br>¡Sé el primero!</div>';
+    return;
+  }
+
+  const conteo = {};
+  ents.forEach(e => { conteo[e.usuario_id] = (conteo[e.usuario_id] || 0) + 1; });
+
+  const { data: users } = await sb.from('usuarios').select('id, nickname');
+  const userMap = {};
+  (users || []).forEach(u => { userMap[u.id] = u.nickname; });
+
+  const sorted = Object.entries(conteo)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 20);
+
+  const list = document.getElementById('ranking-list');
+  list.innerHTML = sorted.map(([id, dias], i) => {
+    const nick = userMap[id] || '?';
+    const esYo = id === usuario.id;
+    const esTop = i === 0;
+    return `
+      <div class="ranking-item ${esYo ? 'yo' : ''} ${esTop ? 'top1' : ''}">
+        <div class="rank-pos">${i === 0 ? '🏆' : '#' + (i+1)}</div>
+        <div class="rank-info">
+          <div class="rank-nick">${nick}</div>
+          <div class="rank-sub">${dias === 1 ? '1 día entrenado' : dias + ' días entrenados'}</div>
+        </div>
+        <div>
+          <div class="rank-dias">${dias}</div>
+          <div class="rank-dias-lbl">días</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── COMUNIDAD ──
+async function cargarComentarios() {
+  const { data } = await sb.from('comentarios')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  const list = document.getElementById('comments-list');
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="empty-state">Nadie escribió todavía.<br>¡Rompé el hielo!</div>';
+    return;
+  }
+
+  list.innerHTML = data.map(c => {
+    const esYo = c.usuario_id === usuario.id;
+    const fecha = new Date(c.created_at);
+    const tiempo = fecha.toLocaleDateString('es-AR', { day:'numeric', month:'short' }) + ' · ' +
+                   fecha.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    return `
+      <div class="comment-card ${esYo ? 'mio' : ''}">
+        <div class="comment-top">
+          <span class="comment-nick">${c.nickname}</span>
+          <span class="comment-time">${tiempo}</span>
+        </div>
+        <div class="comment-text">${c.texto}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function publicarComentario() {
+  const txt = document.getElementById('comment-text').value.trim();
+  if (!txt) return;
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'PUBLICANDO...';
+
+  const { error } = await sb.from('comentarios').insert({
+    usuario_id: usuario.id,
+    nickname: usuario.nickname,
+    texto: txt
+  });
+
+  btn.disabled = false; btn.textContent = 'PUBLICAR';
+  if (!error) {
+    document.getElementById('comment-text').value = '';
+    cargarComentarios();
+  }
+}
+
+// ── INIT ──
+const stored = localStorage.getItem('lt_usuario');
+if (stored) {
+  usuario = JSON.parse(stored);
+  mostrarApp();
+}
+</script>
+</body>
+</html>
